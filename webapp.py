@@ -37,7 +37,7 @@ def main_layout(img_dir):
         ]
     elif radio == option2:
         img_files = st.file_uploader(
-            "Must upload two PNG files to run", accept_multiple_files=True
+            "Must upload two image files to run", accept_multiple_files=True
         )
 
     st.write(
@@ -89,10 +89,10 @@ def sidebar_layout():
     return method, params
 
 
-def lucas_kanade(img_files, window_size=15, tau=1e-2):
+def lucas_kanade(images, window_size=15, tau=1e-2):
 
-    I1g = cv.imread(img_files[0], cv.IMREAD_GRAYSCALE)
-    I2g = cv.imread(img_files[1], cv.IMREAD_GRAYSCALE)
+    I1g = images[0]
+    I2g = images[1]
 
     kernel_x = np.array([[-1., 1.], [-1., 1.]])
     kernel_y = np.array([[-1., -1.], [1., 1.]])
@@ -127,7 +127,7 @@ def lucas_kanade(img_files, window_size=15, tau=1e-2):
     return (u, v)
 
 
-def horn_schunk(img_files, alpha=1, Niter=100):
+def horn_schunk(images, alpha=1, Niter=100):
     """
     Inputs:
     img_files: list of 2 images at time t and t+1
@@ -138,8 +138,8 @@ def horn_schunk(img_files, alpha=1, Niter=100):
     (U,V) = a tuple of u and v components of the flow field at each point
     """
 
-    im1 = cv.imread(img_files[0], cv.IMREAD_GRAYSCALE)
-    im2 = cv.imread(img_files[1], cv.IMREAD_GRAYSCALE)
+    im1 = images[0]
+    im2 = images[1]
 
     # derivative kernels
     kernel_x = np.array([[-1., 1.], [-1., 1.]])
@@ -194,13 +194,24 @@ def main(img_dir):
     btn, img_files = main_layout(img_dir)
     method, params = sidebar_layout()
 
+    images = []
+    for img_file in img_files:
+
+        if isinstance(img_file, st.uploaded_file_manager.UploadedFile):
+            file_bytes = np.asarray(bytearray(img_file.read()), dtype=np.uint8)
+            image = cv.imdecode(file_bytes, cv.IMREAD_GRAYSCALE)
+            images.append(image)
+        else:
+            image = cv.imread(img_file, cv.IMREAD_GRAYSCALE)
+            images.append(image)
+
     if btn:
         with st.spinner("Running " + method + ". Will take a few minutes..."):
             if method == "Lucas Kanade":
                 u, v = lucas_kanade(
-                    img_files, params["winSize"], params["tau"])
+                    images, params["winSize"], params["tau"])
             if method == "Horn Schunk":
-                u, v = horn_schunk(img_files)
+                u, v = horn_schunk(images, params["alpha"], params["Niter"])
 
             st.success(
                 "Done! Now try a different comnbination of method, parameters and images!")
@@ -209,7 +220,7 @@ def main(img_dir):
         st.pyplot(fig)
 
         st.write("""
-                    ### A note on visulization: 
+                    # A note on visulization:
                     To visualize the flow field, the direction of motion is set to hue and magnitude is set to saturation using the HSV color representation, with all values being set to a maxinmum of 255. The HSV is then transformed to RGB and displayed above.
                     """)
 
