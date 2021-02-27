@@ -114,14 +114,10 @@ def flow_error(F_gt, F_est, pixel_range=3, percent_range=0.05):
     return f_err
 
 
-if __name__ == "__main__":
-
-    # Call function to generate results
-    # generate_results("data_scene_flow/training/image_2/")
-
-    # Ground truth directory
-    gt_dir = "data_scene_flow/training/flow_occ/"
-
+def average_error(gt_dir):
+    '''
+    Calculates the average error over all the images
+    '''
     for method in ["horn_schunk", "lucas_kanade"]:
         flow_error_sum = 0
         result_dir = "results/" + method + "/"
@@ -139,5 +135,18 @@ if __name__ == "__main__":
             flow_error_sum += current_flow_error
 
         avg_flow_error = flow_error_sum / 200
-        print("The average flow error over all 200 images using " +
-              method + " is = " + str(avg_flow_error))
+        print(
+            f"The average flow error over all 200 images using {method} is = {avg_flow_error: .4f}")
+
+
+if __name__ == "__main__":
+
+    # Call function to generate results
+    # generate_results("data_scene_flow/training/image_2/")
+
+    # Ground truth directory
+    gt_dir = "data_scene_flow/training/flow_occ/"
+
+    # Calculate and print the average error for both methods
+    # REQUIRES RESULTS TO BE STORED IN ./results DIRECTORY
+    average_error(gt_dir)

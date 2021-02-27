@@ -3,6 +3,7 @@ import cv2 as cv
 import numpy as np
 from scipy.signal import convolve2d as conv
 import matplotlib.pyplot as plt
+from time import time
 
 
 def main_layout(img_dir):
@@ -234,6 +235,7 @@ def main(img_dir):
             images.append(image)
 
     if btn:
+        start_time = time()
         with st.spinner("Running " + method + ". Will take a few minutes..."):
             if method == "Lucas Kanade":
                 u, v, _ = lucas_kanade(
@@ -241,8 +243,9 @@ def main(img_dir):
             if method == "Horn Schunk":
                 u, v, _ = horn_schunk(images, params["alpha"], params["Niter"])
 
+            run_time = time() - start_time
             st.success(
-                "Done! Now try a different combination of method, parameters and images!")
+                f"Done! Now try a different combination of method, parameters and images! Run time = {run_time: .2f}s")
 
         fig = visualize_flow(u, v, images[0])
         st.pyplot(fig)
