@@ -89,30 +89,41 @@ def sidebar_layout():
     return method, params
 
 
-def lucas_kanade(images, window_size=15, tau=1e-2):
+def lucas_kanade(images, window_size=5, tau=1e-2):
+    """
+    Inputs:
+    images: list of 2 images at time t and t+1
+    window_size: patch size of (window_size x window_size) around each pixel
+    tau: threshold for smallest eigen value to ensure "cornerness" or validity of flow
 
-    I1g = images[0]
-    I2g = images[1]
+    Output:
+    (u,v, valid) = a tuple of u and v components of the flow field at each point and whether the point is valid (0 or 1)
+    """
+
+    img1 = images[0]
+    img2 = images[1]
 
     kernel_x = np.array([[-1., 1.], [-1., 1.]])
     kernel_y = np.array([[-1., -1.], [1., 1.]])
     kernel_t = np.array([[1., 1.], [1., 1.]])  # *.25
+
     # window_size is odd, all the pixels with offset in between [-w, w] are inside the window
     w = int(window_size/2)
-    I1g = I1g / 255.  # normalize pixels
-    I2g = I2g / 255.  # normalize pixels
-    # Implement Lucas Kanade
+
+    # ------Implement Lucas Kanade--------
+
     # for each point, calculate I_x, I_y, I_t
     mode = 'same'
-    fx = conv(I1g, kernel_x, boundary='symm', mode=mode)
-    fy = conv(I1g, kernel_y, boundary='symm', mode=mode)
-    ft = conv(I2g, kernel_t, boundary='symm', mode=mode) + \
-        conv(I1g, -kernel_t, boundary='symm', mode=mode)
-    u = np.zeros(I1g.shape)
-    v = np.zeros(I1g.shape)
+    fx = conv(img1, kernel_x, boundary='symm', mode=mode)
+    fy = conv(img1, kernel_y, boundary='symm', mode=mode)
+    ft = conv(img2, kernel_t, boundary='symm', mode=mode) + \
+        conv(img1, -kernel_t, boundary='symm', mode=mode)
+    u = np.zeros(img1.shape)
+    v = np.zeros(img1.shape)
+    valid = np.zeros(img1.shape)
     # within window window_size * window_size
-    for i in range(w, I1g.shape[0]-w):
-        for j in range(w, I1g.shape[1]-w):
+    for i in range(w, img1.shape[0]-w):
+        for j in range(w, img1.shape[1]-w):
             Ix = fx[i-w:i+w+1, j-w:j+w+1].flatten()
             Iy = fy[i-w:i+w+1, j-w:j+w+1].flatten()
             It = ft[i-w:i+w+1, j-w:j+w+1].flatten()
@@ -123,59 +134,65 @@ def lucas_kanade(images, window_size=15, tau=1e-2):
                 nu = np.matmul(np.linalg.pinv(A), b)  # get velocity here
                 u[i, j] = nu[0]
                 v[i, j] = nu[1]
+                valid[i, j] = 1
 
-    return (u, v)
+    return (u, v, valid)
 
 
 def horn_schunk(images, alpha=1, Niter=100):
     """
     Inputs:
-    img_files: list of 2 images at time t and t+1
+    images: list of 2 images at time t and t+1
     alpha: regularization constant
     Niter: number of iteration
 
     Output:
-    (U,V) = a tuple of u and v components of the flow field at each point
+    (u,v) = a tuple of u and v components of the flow field at each point and whether the point is valid (0 or 1)
     """
 
-    im1 = images[0]
-    im2 = images[1]
+    img1 = images[0]
+    img2 = images[1]
 
     # derivative kernels
     kernel_x = np.array([[-1., 1.], [-1., 1.]])
     kernel_y = np.array([[-1., -1.], [1., 1.]])
-    kernel_t = np.array([[1., 1.], [1., 1.]])  # *.25
+    kernel_t = np.array([[1., 1.], [1., 1.]]) * .25
     # Averaging kernel
     kernel = np.array([[1/12, 1/6, 1/12],
                        [1/6,    0, 1/6],
                        [1/12, 1/6, 1/12]], float)
 
     # set up initial velocities
-    U = np.zeros([im1.shape[0], im1.shape[1]])
-    V = np.zeros([im1.shape[0], im1.shape[1]])
+    u = np.zeros([img1.shape[0], img1.shape[1]])
+    v = np.zeros([img1.shape[0], img1.shape[1]])
 
     mode = "same"
     # Estimate derivatives
-    fx = conv(im1, kernel_x, boundary='symm', mode=mode)
-    fy = conv(im1, kernel_y, boundary='symm', mode=mode)
-    ft = conv(im2, kernel_t, boundary='symm', mode=mode) + \
-        conv(im1, -kernel_t, boundary='symm', mode=mode)
+    fx = conv(img1, kernel_x, boundary='symm', mode=mode)
+    fy = conv(img1, kernel_y, boundary='symm', mode=mode)
+    ft = conv(img2, kernel_t, boundary='symm', mode=mode) + \
+        conv(img1, -kernel_t, boundary='symm', mode=mode)
+
+    # ------- Implement Horn-Schunk ---------------
 
     # Iteration to reduce error
     for _ in range(Niter):
         # Compute local averages of the flow vectors
-        uAvg = conv(U, kernel, boundary='symm', mode=mode)
-        vAvg = conv(V, kernel, boundary='symm', mode=mode)
+        uAvg = conv(u, kernel, boundary='symm', mode=mode)
+        vAvg = conv(v, kernel, boundary='symm', mode=mode)
         # common part of update step
         der = (fx*uAvg + fy*vAvg + ft) / (alpha**2 + fx**2 + fy**2)
         # iterative step
-        U = uAvg - fx * der
-        V = vAvg - fy * der
+        u = uAvg - fx * der
+        v = vAvg - fy * der
 
-    return (U, V)
+    # All points are valid since it's a dense field
+    valid = np.ones(img1.shape)
+
+    return (u, v, valid)
 
 
-def visualize_flow(u, v):
+def visualize_flow(u, v, im1):
     hsv = np.zeros((u.shape[0], u.shape[1], 3), dtype=np.float32)
     hsv[..., 1] = 1
     mag, ang = cv.cartToPolar(u, v)
@@ -183,9 +200,20 @@ def visualize_flow(u, v):
     hsv[..., 2] = cv.normalize(mag, None, 0, 255, cv.NORM_MINMAX)
     rgb = cv.cvtColor(hsv, cv.COLOR_HSV2RGB)
 
-    fig, ax = plt.subplots()
-    ax.imshow(rgb)
-    ax.axis("off")
+    fig, (ax1, ax2) = plt.subplots(2, 1)
+    ax1.imshow(rgb)
+    ax1.axis("off")
+
+    x, y = np.where(np.abs(mag) > 50)
+
+    r, c = im1.shape[0], im1.shape[1]
+    cols, rows = np.meshgrid(np.arange(0, c, 1), np.arange(r, -1, -1))
+
+    ax2.imshow(im1, cmap='gray')
+    t = 10
+    ax2.quiver(cols[x, y][::5], rows[x, y][::5], u[x, y][::5], v[x, y][::5],
+               color="r", angles='xy', units='xy', width=0.5)
+    ax2.axis("off")
 
     return fig
 
@@ -208,20 +236,24 @@ def main(img_dir):
     if btn:
         with st.spinner("Running " + method + ". Will take a few minutes..."):
             if method == "Lucas Kanade":
-                u, v = lucas_kanade(
+                u, v, _ = lucas_kanade(
                     images, params["winSize"], params["tau"])
             if method == "Horn Schunk":
-                u, v = horn_schunk(images, params["alpha"], params["Niter"])
+                u, v, _ = horn_schunk(images, params["alpha"], params["Niter"])
 
             st.success(
-                "Done! Now try a different comnbination of method, parameters and images!")
+                "Done! Now try a different combination of method, parameters and images!")
 
-        fig = visualize_flow(u, v)
+        fig = visualize_flow(u, v, images[0])
         st.pyplot(fig)
 
         st.write("""
-                    # A note on visulization:
-                    To visualize the flow field, the direction of motion is set to hue and magnitude is set to saturation using the HSV color representation, with all values being set to a maxinmum of 255. The HSV is then transformed to RGB and displayed above.
+                    # A note on visualization:
+                    In the first image, to visualize the flow field, the direction of motion is set to hue and magnitude is set to saturation using the HSV color representation, 
+                    with all values being set to a maximum of 255. The HSV is then transformed to RGB and displayed above.
+
+                    In the second image, a quiver plot is overlaid on the image at time t. In order to avoid overcrowding of the vectors, they are first thresholded at a magnitude 
+                    of 200 and then only every 5th vector is considered for plotting.
                     """)
 
 
