@@ -263,6 +263,6 @@ def main(img_dir):
 if __name__ == "__main__":
 
     # Set the KITTI image_2 directory path
-    img_dir = "data_scene_flow/training/image_2/"
+    img_dir = "./image_2/"
 
     main(img_dir)
