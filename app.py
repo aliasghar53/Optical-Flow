@@ -65,7 +65,7 @@ def sidebar_layout():
     """)
     method = st.sidebar.selectbox(
         "Select Optical Flow Method",
-        ["Lucas Kanade", "Horn Schunk"],
+        ["Horn Schunk", "Lucas Kanade"],
     )
 
     if method == "Lucas Kanade":
