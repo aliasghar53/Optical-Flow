@@ -226,7 +226,7 @@ def main(img_dir):
     images = []
     for img_file in img_files:
 
-        if isinstance(img_file, st.uploaded_file_manager.UploadedFile):
+        if isinstance(img_file, st.runtime.uploaded_file_manager.UploadedFile):
             file_bytes = np.asarray(bytearray(img_file.read()), dtype=np.uint8)
             image = cv.imdecode(file_bytes, cv.IMREAD_GRAYSCALE)
             images.append(image)
