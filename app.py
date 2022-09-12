@@ -12,6 +12,11 @@ def main_layout(img_dir):
 
     st.title("SYDE 673: Optical Flow")
 
+    st.markdown("""
+                <style>.big-font {font-size:30px;}</style>
+                <p class="big-font"> <a href="https://github.com/aliasghar53/Optical-Flow">GitHub</a> </p>
+                """, unsafe_allow_html=True)
+
     st.write("""
         # Instructions:
         Select the Optical Flow method from the side panel on the left. Choose the parameters for that method.
